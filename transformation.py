@@ -35,3 +35,15 @@ class RamdomResizeCrop:
         resized = torch.nn.functional.interpolate(cropped_data.permute(1, 0).unsqueeze(0), size=timesteps, mode='linear')
         return resized.squeeze(), label
     
+class RandomTransformation:
+    """Generate augmentated data.
+    """
+    def __init__(self, to_range=[0.0, 0.5], rrc_range=[0.5, 1.0]):
+        self.to = TimeOut(to_range)
+        self.rrc = RamdomResizeCrop(rrc_range)
+        
+    def __call__(self, x):
+        z1 = self.to(self.rrc(x))
+        #z2 = self.to(self.rrc(x))
+        #return z1, z2
+        return z1

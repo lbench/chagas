@@ -71,7 +71,7 @@ class XResNet18(nn.Module):
     def forward(self, x):
         out = self.forward_encoder(x)
         out = self.forward_projection(out)
-        return out
+        return F.normalize(out, dim=1)
         
         
-# TO: Dataset function, Dataloader (allocate function). Loss function. Training loop.
+# TO: Dataset function, Dataloader (allocate function). Training loop.
