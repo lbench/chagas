@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # https://colab.research.google.com/drive/1UK8BD3xvTpuSj75blz8hThfXksh19YbA?usp=sharing#scrollTo=4ZjswK4oT4qJ
-def nt_xent_loss(out_1, out_2, temperature=0.5):
+def nt_xent_loss(out_1, out_2, temperature=0.5, eps=1e-6):
     out = torch.cat([out_1, out_2], dim=0)
     n_samples = len(out)
     
@@ -17,5 +17,5 @@ def nt_xent_loss(out_1, out_2, temperature=0.5):
     pos = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
     pos = torch.cat([pos, pos], dim=0)
 
-    loss = -torch.log(pos / neg).mean()
+    loss = -torch.log(pos / (neg + eps)).mean()
     return loss

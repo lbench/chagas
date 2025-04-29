@@ -28,7 +28,7 @@ class XResBlock1d(nn.Module):
         return output
     
 class XResNet18(nn.Module):
-    def __init__(self, in_channel=12, out_channel, layers=[2, 2, 2, 2]):
+    def __init__(self, in_channel=12, out_channel=64, layers=[2, 2, 2, 2]):
         super().__init__()
         # Encoder
         self.stem = nn.Sequential(
@@ -55,7 +55,7 @@ class XResNet18(nn.Module):
         blocks = [XResBlock1d(in_channel, out_channel, stride=stride)]
         for _ in range(n_block-1):
             blocks.append(XResBlock1d(out_channel, out_channel, stride=1))
-        return nn.Sequential(blocks)
+        return nn.Sequential(*blocks)
     
     def forward_encoder(self, x):
         out = self.stem_pool(self.stem(x))
@@ -65,13 +65,15 @@ class XResNet18(nn.Module):
         out = self.block4(out)
         return out
     
-    def forward_projection(self, x):
-        return self.projection(self.avgpool(x))
+    def forward_projection(self, feature):
+        out = self.avgpool(feature)
+        out = self.projection(out.squeeze(-1))
+        return F.normalize(out, dim=1)
     
     def forward(self, x):
-        out = self.forward_encoder(x)
-        out = self.forward_projection(out)
-        return F.normalize(out, dim=1)
+        feature = self.forward_encoder(x)
+        out = self.forward_projection(feature)
+        return out
         
         
 # TO: Dataset function, Dataloader (allocate function). Training loop.
