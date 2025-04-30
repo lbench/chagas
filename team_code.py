@@ -18,12 +18,11 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 import sys
 
 import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import DataLoader
 
 from helper_code import *
 from dataloader import *
-from resnet import PreActResNet1d
+from xresnet18 import *
+from SSLModule import ClassifierModule
 
 ################################################################################
 #
@@ -34,16 +33,13 @@ from resnet import PreActResNet1d
 # Train your models. This function is *required*. You should edit this function to add your code, but do *not* change the arguments
 # of this function. If you do not train one of the models, then you can return None for the model.
 
-SEQ_LENGTH = 4096
-N_CLASSES = 2 - 1
-dropout_rate = 0.5
-kernel_size = 17
-filter_size = [64, 128, 196, 256, 320, 512, 800, 1024]
-net_length = [4096, 2048, 1024, 512, 256, 128, 64, 16]
-EPOCHS = 15
-
-
-
+epochs = 100
+lr=5e-3
+out_channel = 256
+out_dim = 1
+layers = [3, 4,  6, 3]
+temperature = 0.2
+bs = 128
 
 # Train your model.
 def train_model(data_folder, model_folder, verbose):
@@ -140,16 +136,12 @@ def load_model(model_folder, verbose):
     else:
         device = torch.device("cpu")
 
-    model = PreActResNet1d(input_dim=(12, SEQ_LENGTH),
-                         blocks_dim=list(zip(filter_size, net_length)),
-                         n_classes=N_CLASSES,
-                         kernel_size=kernel_size,
-                         dropout=dropout_rate).to(device)
+    encoder = XResNet18(out_channel=out_channel, layers=layers)
+    encoder.load_state_dict(torch.load(os.path.join(model_folder,"encoder.pt")))
+    model = ClassifierModule(encoder=encoder, out_dim = out_dim)
+    model.classifier.load_state_dict(torch.load(os.path.join(model_folder, 'Best_classifier.pt')))
 
-
-    model.load_state_dict(torch.load(os.path.join(model_folder, 'model3.pth'), weights_only=True))
-
-    return model
+    return model.to(device)
 
 # Run your trained model. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments of this function.
@@ -165,21 +157,16 @@ def run_model(record, model, verbose):
     signal, fields = load_signals(record)
     signal = torch.from_numpy(signal).to(device, dtype=torch.float32).T
 
-    padding = (0, 4096 - signal.shape[1], 0, 0)
-    signal = F.pad(signal, padding, "constant", 0)
-
-    signal = torch.unsqueeze(signal, 0)
-
-    # Load the model.
-
+    transformation = Compose([NormalizeECG(), ResizeECG()])
+    signal = transformation(signal)
 
     # Get the model outputs.
     model.eval()
-    probability_output = model(signal)
+    probability_output = model(signal.unsqueeze(0))
     probability_output = F.sigmoid(probability_output)
     binary_output = torch.round(probability_output)
 
-    return binary_output, probability_output
+    return binary_output.item(), probability_output.item()
 
 ################################################################################
 #

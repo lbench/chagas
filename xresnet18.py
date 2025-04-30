@@ -49,7 +49,9 @@ class XResNet18(nn.Module):
         
         # Projector
         self.avgpool = nn.AdaptiveAvgPool1d(1)
-        self.projection = nn.Linear(512, out_channel)
+        self.projection = nn.Sequential(nn.Linear(512, 2048),
+                        nn.ReLU(),
+                        nn.Linear(2048, out_channel))
         
     def make_layer(self, in_channel, out_channel, n_block, stride=1):
         blocks = [XResBlock1d(in_channel, out_channel, stride=stride)]
@@ -63,17 +65,14 @@ class XResNet18(nn.Module):
         out = self.block2(out)
         out = self.block3(out)
         out = self.block4(out)
-        return out
+        out = self.avgpool(out)
+        return out.squeeze(-1)
     
     def forward_projection(self, feature):
-        out = self.avgpool(feature)
-        out = self.projection(out.squeeze(-1))
+        out = self.projection(feature)
         return F.normalize(out, dim=1)
     
     def forward(self, x):
         feature = self.forward_encoder(x)
         out = self.forward_projection(feature)
         return out
-        
-        
-# TO: Dataset function, Dataloader (allocate function). Training loop.

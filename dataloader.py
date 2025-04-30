@@ -119,3 +119,24 @@ class DataModule(pl.LightningDataModule):
         
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batchsize, shuffle=True)
+    
+class FinetuneDataModule(pl.LightningDataModule):
+    def __init__(self, train_path, val_path, transformation=None, augmentation=None, batchsize=64, upsampling=False):
+        super().__init__()
+        self.train_path = train_path
+        self.val_path = val_path
+        self.batchsize = batchsize
+        self.transformation = transformation
+        self.augmentation = augmentation
+        self.upsampling = upsampling
+        
+    def setup(self, stage=None):
+        self.train_dataset = FolderDataset(self.train_path, transform=self.transformation, upsampling=self.upsampling)
+        self.val_dataset = FolderDataset(self.val_path, transform=self.transformation)
+        
+    def train_dataloader(self):
+        return DataLoader(self.train_dataset, batch_size=self.batchsize, shuffle=True)
+    
+    def val_dataloader(self):
+        if self.val_path:
+            return DataLoader(self.val_dataset, batch_size=self.batchsize, shuffle=False)
